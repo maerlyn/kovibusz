@@ -86,6 +86,11 @@ func main() {
 
 			ev.Text = strings.ToLower(ev.Text)
 
+			if ev.Text == "kecske" {
+				replyTo(ev, ":goat:")
+				continue
+			}
+
 			if ev.Text == "help" {
 				sendHelpText(ev)
 				continue

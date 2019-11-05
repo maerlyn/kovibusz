@@ -1,0 +1,6 @@
+api_key = ''
+slack_api_token = ''
+
+slack_channels = [
+    '#random',
+]

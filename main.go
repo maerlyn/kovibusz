@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"github.com/BurntSushi/toml"
 	"github.com/maerlyn/kovibusz/bkk"
+	"github.com/maerlyn/kovibusz/bkk/waze"
 	"github.com/nlopes/slack"
+	"math"
 	"os"
 	"os/signal"
 	"sort"
@@ -30,6 +32,8 @@ var (
 	slackUserId string
 
 	bkkClient *bkk.Client
+
+	userNames map[string]string
 )
 
 type departure struct {
@@ -57,6 +61,8 @@ func init() {
 			fmt.Printf("config reload failed: %s\n", err.Error())
 		}
 	}()
+
+	userNames = make(map[string]string)
 }
 
 func main() {
@@ -71,12 +77,20 @@ func main() {
 			slackUserId = id.UserID
 
 		case *slack.MessageEvent:
-			fmt.Printf("%s (%s): %s\n", ev.User, ev.Channel, ev.Text)
-
 			if ev.User == slackUserId {
 				//a sajat uzenetekkel nem foglalkozunk
 				continue
 			}
+
+			if _, ok := userNames[ev.User]; !ok {
+				info, err := slackClient.GetUserInfo(ev.User)
+				if err != nil {
+					userNames[ev.User] = ev.User
+				} else {
+					userNames[ev.User] = info.Name
+				}
+			}
+			fmt.Printf("[%s] %s (%s): %s\n", time.Now().Format("2006-01-02 15:04:05"), userNames[ev.User], ev.Channel, ev.Text)
 
 			if !isDMChannelId(ev.Channel) && !strings.HasPrefix(ev.Text, fmt.Sprintf("<@%s>", slackUserId)) {
 				continue
@@ -107,13 +121,19 @@ func main() {
 			}
 
 			if ev.Text == "fenn" {
+				go func () {
+					secs := waze.GetHegyaljaTime()
+					mins := int64(math.Round(float64(secs) / 60.))
+					replyTo(ev, fmt.Sprintf("Waze szerint a Hegyalján lejutni kb. %d perc.", mins))
+				}()
+
 				replyWithDepartureTimes(ev, "BKK_F00004", "*")
 				continue
 			}
 
 			if ev.Text == "be" {
 				if _, ok := config.Inbound[ev.User]; !ok {
-					replyTo(ev, "Rólad nem tudom, honnan-mivel indulsz befelé. Maerlyn tud segíteni, keresd meg őt!")
+					replyTo(ev, "Rólad nem tudom, honnan-mivel indulsz befelé. <@U457WD3CM> tud segíteni, keresd meg őt!")
 					continue
 				}
 
@@ -126,7 +146,7 @@ func main() {
 
 					if err != nil {
 						fmt.Printf("futar api error: %s\n", err.Error())
-						replyTo(ev, "Bocsi, most nem sikerült lekérni a futártól, próbáld újra, és/vagy piszkáld Maerlynt, hogy nézze meg")
+						replyTo(ev, "Bocsi, most nem sikerült lekérni a futártól, próbáld újra, és/vagy piszkáld <@U457WD3CM>t, hogy nézze meg")
 						continue
 					}
 
@@ -168,7 +188,8 @@ func main() {
 			}
 
 			if isDMChannelId(ev.Channel) {
-				replyTo(ev, "Bocsánat, ezt nem értem. Segítséget a help szóval tudsz kérni.")
+				replyTo(ev, "Bocsánat, ezt nem értem. Segítséget a *help* szóval bármikor tudsz kérni, mutatom is:")
+				sendHelpText(ev)
 			}
 		}
 	}
@@ -206,13 +227,13 @@ func sendHelpText(event *slack.MessageEvent) {
 
 ez itt egy futár-segéd slack bot. Privátban simán, vagy publikusban @kovibusz előtaggal írva ezekre reagál:
 
-* help - válaszol Neked ezzel a segítséggel
-* 105 - a 105-ös busz következő indulásait mondja, a Don Francesco előtti megállóból
-* 178 - a 178-as busz következő indulásait mondja, az iroda elől, a belváros felé
-* fenn - a fenti buszmegálló (8E, 108E, 110, 112, éjszakai) következő indulásait mondja, a belváros felé
-* be - ha egyeztettél Maerlynnel (bátran!) akkor segít bejutni is a gyárba
+• help - válaszol Neked ezzel a segítséggel
+• 105 - a 105-ös busz következő indulásait mondja, a Don Francesco előtti megállóból
+• 178 - a 178-as busz következő indulásait mondja, az iroda elől, a belváros felé
+• fenn - a fenti buszmegálló (8E, 108E, 110, 112, éjszakai) következő indulásait mondja, a belváros felé
+• be - ha egyeztettél <@U457WD3CM>ral (bátran!) akkor segít bejutni is az irodába
 
-kérdés, óhaj/sóhaj? írj Maerlynnek`
+kérdés, óhaj/sóhaj? írj <@U457WD3CM>nak`
 
 	replyTo(event, text)
 }
@@ -232,7 +253,7 @@ func replyWithDepartureTimes(ev *slack.MessageEvent, stopId string, route string
 	ret, err := bkkClient.GetArrivalsAndDeparturesForStop(stopId)
 	if err != nil {
 		fmt.Printf("futar api error: %s\n", err.Error())
-		replyTo(ev, "Bocsi, most nem sikerült lekérni a futártól, próbáld újra, és/vagy piszkáld Maerlynt, hogy nézze meg")
+		replyTo(ev, "Bocsi, most nem sikerült lekérni a futártól, próbáld újra, és/vagy piszkáld <@U457WD3CM>t, hogy nézze meg")
 		return
 	}
 

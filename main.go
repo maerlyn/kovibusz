@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/BurntSushi/toml"
 	"github.com/maerlyn/kovibusz/bkk"
-	"github.com/maerlyn/kovibusz/bkk/waze"
+	"github.com/maerlyn/kovibusz/waze"
 	"github.com/nlopes/slack"
 	"math"
 	"os"

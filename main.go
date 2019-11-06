@@ -122,7 +122,11 @@ func main() {
 
 			if ev.Text == "fenn" {
 				go func () {
-					secs := waze.GetHegyaljaTime()
+					secs, err := waze.GetHegyaljaTime()
+					if err != nil {
+						fmt.Printf("Waze hiba: %s\n", err.Error())
+						return
+					}
 					mins := int64(math.Round(float64(secs) / 60.))
 					replyTo(ev, fmt.Sprintf("Waze szerint a Hegyalján lejutni kb. %d perc.", mins))
 				}()

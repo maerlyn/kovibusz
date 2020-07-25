@@ -120,8 +120,8 @@ func main() {
 				continue
 			}
 
-			if ev.Text == "fenn" {
-				go func () {
+			if ev.Text == "fenn" || ev.Text == "fent" {
+				go func() {
 					secs, err := waze.GetHegyaljaTime()
 					if err != nil {
 						fmt.Printf("Waze hiba: %s\n", err.Error())
@@ -262,6 +262,8 @@ func replyWithDepartureTimes(ev *slack.MessageEvent, stopId string, route string
 	}
 
 	text := ""
+	//text = "MIÉRT MENTÉL BE AZ IRODÁBA KIJÁRÁSI KORLÁTOZÁS IDEJÉN, BÉLÁM\n\n"
+
 	for _, v := range ret.Data.Entry.StopTimes {
 		timeUnix := time.Unix(v.DepartureTime, 0)
 		timeDiff := timeUnix.Sub(time.Now())
